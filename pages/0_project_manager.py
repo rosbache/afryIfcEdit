@@ -3,7 +3,7 @@ import ifcopenshell
 from datetime import date
 import ifcopenshell.util.element
 import afry_bimlib_streamlit
-import ifchelper
+# import ifchelper
 from io import BytesIO
 import os
 

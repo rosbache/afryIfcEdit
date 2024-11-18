@@ -114,12 +114,11 @@ def execute():
     # Group properties per pset before update
     grouped_data = edited_df.apply(group_properties, axis=1).tolist()
 
-    st.write(grouped_data)
-
     #  Iterate over all elements and update psets
 
     # Keys aka pset to keep from all psets
     keys_to_keep = ['04 Fagspesfikk', '03 Objektinformasjon', '01 Prosjektinformasjon', '02 Modellinformasjon']
+    
     # Filtered dictionary
     # psets = {key: original_psets[key] for key in keys_to_keep}
     for element in st.session_state['ifc_file'].by_type('IfcElement'):

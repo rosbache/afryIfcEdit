@@ -13,6 +13,8 @@ from datetime import date
 from datetime import datetime
 from pathlib import Path
 from io import BytesIO
+import subprocess
+import sys
 
 def update_file_bytes():
     '''Update filebytes to temp before writing to file'''
@@ -82,6 +84,9 @@ def remove_uploaded_file():
 
 def main():
     '''Description'''
+
+    # result = subprocess.run([sys.executable, "-c", "print('Hello from subprocess')"], capture_output=True, text=True)
+    # st.write(result.stdout)
 
     # Set page configuration
     st.set_page_config(
