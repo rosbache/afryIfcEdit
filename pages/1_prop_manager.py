@@ -1,5 +1,4 @@
 import streamlit as st
-import afry_bimlib_streamlit
 import ifcopenshell
 from datetime import date
 import os
@@ -13,7 +12,7 @@ st.set_page_config(
 # )
 
 st.markdown("# Ifc Property Set Editor ❄️")
-st.sidebar.markdown("# Page 3 ❄️")
+# st.sidebar.markdown("# Page 3 ❄️")
 
 def find_pset(entity, pset_name):
     '''Find a pset'''
@@ -26,25 +25,21 @@ def find_pset(entity, pset_name):
                 return pset
     return None
 
-# Function to update psets
 def update_psets(ifc_element, psets):
+    '''Update an proeprty value in a given pset'''
+
     for pset_name, variables in psets.items():
-        # print(f'*pset_name*: {pset_name}')
-        # pset = ifc_element.get_pset(pset_name)
         pset = find_pset(entity=ifc_element, pset_name=pset_name)
-        # print(f'pset: {pset} ' + str(type(pset)))
         if pset.Name == pset_name:# is not None:
-            # print(f'match on pset: {pset}')
             # Update the variables in the pset
             for var_name, var_value in variables.items():
                 for prop in pset.HasProperties:
                     if prop.Name == var_name: # Property found
                         prop.NominalValue.wrappedValue = var_value
-                        # print(f'prop updated: {prop.NominalValue}')
-                
-
 
 def group_properties(row):
+    '''Group properties in dataframe and filter'''
+
     grouped = {'psets': {}}
     for col in row.index:
         if '.' in col:
@@ -52,6 +47,7 @@ def group_properties(row):
             if pset not in grouped['psets']:
                 grouped['psets'][pset] = {}
             grouped['psets'][pset][prop] = row[col]
+            # Only take with Pset and 01/02/03/04 TODO make general or input from user
         elif col.startswith(('Pset_', '01', '02', '03', '04')):
             if 'psets' not in grouped:
                 grouped['psets'] = {}
@@ -59,8 +55,7 @@ def group_properties(row):
         else:
             grouped[col] = row[col]
 
-    return grouped    
-
+    return grouped
 
 def update_file_bytes():
     '''Update filebytes to temp before writing to file'''
@@ -81,7 +76,6 @@ def update_file_bytes():
 
     return updated_file_bytes
 
-
 def execute():
     if st.session_state.get("ifc_file") is None:
         st.warning("No file provided. Please upload a file.")
@@ -91,6 +85,7 @@ def execute():
 
     # Create the updated file name with the current date
     updated_file_name = original_file_name.split(".")[0] + "_updated_" + str(date.today()) + ".ifc"
+
     st.markdown(
         """ 
         #####  Investigate and update ifc file before export an updated .ifc files
@@ -98,43 +93,57 @@ def execute():
     )
     st.markdown("""---""")
     st.markdown("##### Instructions:")
-    st.write('More text to come!')
-
+    st.write('1. Edit in dataframe as in you do in excel. Drag a cell to copy value to the next cell. No formulas is allowed. !')
+    st.write('2. Click on the button "Execute updtates" above the dataframe editorto update values in the ifc-file')
+    st.write('Only values in pset can be changed at this time')
+    st.write('3. Click on the button below the dataframe editor" Download File')
+    
+    st.markdown("""---""")
     st.write('File currently editing: ' + original_file_name)
     st.write('File to be written: ' + updated_file_name)
     st.markdown("""---""")
 
-    # Grab current session
-    # session = st.session_state
- 
+    # Group properties per pset before update
+    execute_button = st.button(label='Execute updates')
+
     # Set up dataframe and dataeditor    
     edited_df = st.data_editor(st.session_state['DataFrame'])
     st.toast(body='Dataframe editor setup complete')
+  
+    # initiate value to not get a ubound error
+    updated_file = ''
 
-    # Group properties per pset before update
-    grouped_data = edited_df.apply(group_properties, axis=1).tolist()
+    # Update in pset and file. TODO have as own function
+    if execute_button:
+        # Group data in dataframe editor (pset1.pset1value1, pset2.pset2value1)
+        grouped_data = edited_df.apply(group_properties, axis=1).tolist()
+       
+        # Keys aka pset to keep from all psets
+        # TODO make general or input from user
+        keys_to_keep = ['04 Fagspesfikk', '03 Objektinformasjon', '01 Prosjektinformasjon', '02 Modellinformasjon']
 
-    #  Iterate over all elements and update psets
+        for element in st.session_state['ifc_file'].by_type('IfcElement'):
+            for item in grouped_data:
+                # Psets in element
+                original_psets = item['psets']
+                # Filtered psets. Ignor empty pset {} if not found
+                psets = {key: original_psets.get(key, {}) for key in keys_to_keep if original_psets.get(key, {})}
+                # Match on GlobalId
+                if element.GlobalId == item['GlobalId']:
+                    # Update psets
+                    update_psets(element, psets)
+        st.toast(body='Psets updated with new values')
 
-    # Keys aka pset to keep from all psets
-    keys_to_keep = ['04 Fagspesfikk', '03 Objektinformasjon', '01 Prosjektinformasjon', '02 Modellinformasjon']
-    
-    # Filtered dictionary
-    # psets = {key: original_psets[key] for key in keys_to_keep}
-    for element in st.session_state['ifc_file'].by_type('IfcElement'):
-        for item in grouped_data:
-            original_psets = item['psets']
-            psets = {key: original_psets[key] for key in keys_to_keep}
-            if element.GlobalId == item['GlobalId']:
-                # update_psets(element, item['psets'])
-                update_psets(element, psets)
+        # Update in file
+        st.toast(body='Started to write updated file to temp location')
+        updated_file = update_file_bytes()
+        st.toast(body='Updated file written to temp location')
 
-    updated_file = update_file_bytes()                                
-    st.download_button("Download updated file",
-                       data = updated_file, # st.session_state['ifc_file']
-                       file_name=updated_file_name,
-                        mime="application/octet-stream" # Provide the appropriate name
-                       )
-    
-   
+    # Prepare a download button
+    download_button = st.download_button("Download updated file",
+                        data = updated_file,
+                        file_name=updated_file_name,
+                            mime="application/octet-stream" # Provide the appropriate name
+                        )
+
 execute()

@@ -3,12 +3,30 @@ import ifcopenshell
 from datetime import date
 import ifcopenshell.util.element
 import afry_bimlib_streamlit
-# import ifchelper
 from io import BytesIO
 import os
 
+def update_file_bytes():
+    '''Update filebytes to temp before writing to file'''
+
+    # Write the modified IFC file to a temporary file on disk
+    temp_file_path = "temp_updated_file.ifc"
+  
+    st.session_state['ifc_file'].write(temp_file_path)
+    
+    # Read the file into a BytesIO object
+    updated_file_bytes = BytesIO()
+    with open(temp_file_path, 'rb') as f:
+        updated_file_bytes.write(f.read())
+    updated_file_bytes.seek(0)
+
+    # Optional: Delete the temporary file if it's no longer needed
+    os.remove(temp_file_path)
+
+    return updated_file_bytes
+
+
 st.markdown("# Ifc Project, Site, Building, Storey Editor ❄️")
-st.sidebar.markdown("# Page 2 ❄️")
 
 col1, col2 = st.columns(2) # Two colums created
 
@@ -37,7 +55,7 @@ with col1:
     # new_building_description= None
     # st.session_state["ifc_file"] = afry_bimlib_streamlit.update_ifc_building(st.session_state["ifc_file"], new_building_name, new_building_description)
 
-    # # IfcStorey
+    # # IfcStorey TODO what if several storeys?
     # st.write(afry_bimlib_streamlit.get_building_storeys(st.session_state["ifc_file"]))
     # st.write('IfcBuildingStorey: '+ str(afry_bimlib_streamlit.get_building_storeys(st.session_state["ifc_file"]['Storey']).Name))
 
